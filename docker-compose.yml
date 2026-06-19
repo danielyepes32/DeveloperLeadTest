@@ -1,0 +1,34 @@
+# Production-like local environment: API + PostgreSQL.
+# Usage:  docker compose up --build   ->  http://localhost:8000
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: procurement
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d procurement"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+psycopg://app:app@db:5432/procurement
+      # Real deployments inject this from a secrets manager. The fail-fast guard in
+      # app/config.py refuses to boot in production with the default/short secret.
+      JWT_SECRET: ${JWT_SECRET:-f3a9c1e5b7d20846e9c4a1f08b6d3e72a5c8091d4e6f7a2b3c5d8e0f1a2b3c4d5}
+      APP_ENV: production
+      LOG_LEVEL: INFO
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

@@ -1,0 +1,109 @@
+name: CI/CD
+
+# Estrategia de despliegue (ver Arquitectura/ADR/0001-estrategia-despliegue.md):
+#   - Push a `main`           -> deploy a STAGING (continuous deployment)
+#   - Tag semántico `vX.Y.Z`  -> deploy a PRODUCCIÓN (release, con aprobación)
+# Todo cambio pasa por los quality gates (lint + tests + escaneo) antes de desplegar.
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  pull_request:
+
+# Permite cancelar runs viejos del mismo ref para ahorrar minutos de CI.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  quality:
+    name: Lint + Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.11.15"
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Lint (ruff)
+        run: uv run ruff check .
+      - name: Tests (pytest + coverage)
+        run: uv run pytest
+        env:
+          DATABASE_URL: "sqlite:///:memory:"
+          JWT_SECRET: ci-secret
+
+  build:
+    name: Build image
+    needs: quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Metadata (tags/labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=sha,format=short
+      - name: Build (and push on push events)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Scan image (Trivy, falla en CRITICAL/HIGH)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
+  deploy-staging:
+    name: Deploy to staging
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Deploy
+        run: |
+          echo "Desplegando ${IMAGE}:main a STAGING"
+          # Punto de integración real: kubectl set image / helm upgrade /
+          # aws ecs update-service / docker compose pull && up -d, etc.
+
+  deploy-production:
+    name: Deploy to production
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    # El environment 'production' lleva required reviewers => despliegue con aprobación.
+    environment: production
+    steps:
+      - name: Deploy
+        run: |
+          echo "Desplegando ${IMAGE}:${GITHUB_REF_NAME} a PRODUCCIÓN"
+          # Estrategia blue/green o canary + healthcheck + rollback automático.

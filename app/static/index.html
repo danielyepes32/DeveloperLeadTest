@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Procurement · Solicitudes y Ofertas</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>🛒 Procurement</h1>
+    <div id="session" class="session hidden">
+      <span id="who" class="who"></span>
+      <span id="role-badge" class="badge role"></span>
+      <button id="logout" class="ghost" type="button">Salir</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Auth -->
+    <section id="auth" class="card auth-card">
+      <div class="tabs" role="tablist" aria-label="Autenticación">
+        <button class="tab active" data-tab="login" role="tab" aria-selected="true" id="tab-login" aria-controls="login-form">Ingresar</button>
+        <button class="tab" data-tab="register" role="tab" aria-selected="false" id="tab-register" aria-controls="register-form">Registrarse</button>
+      </div>
+
+      <form id="login-form" class="pane" role="tabpanel" aria-labelledby="tab-login">
+        <label for="login-email">Email</label>
+        <input id="login-email" name="email" type="email" autocomplete="email" placeholder="tucorreo@ejemplo.com" required />
+        <label for="login-password">Contraseña</label>
+        <input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="contraseña" required />
+        <button type="submit" data-loading>Ingresar</button>
+      </form>
+
+      <form id="register-form" class="pane hidden" role="tabpanel" aria-labelledby="tab-register">
+        <label for="reg-name">Nombre completo</label>
+        <input id="reg-name" name="full_name" autocomplete="name" placeholder="Tu nombre" required />
+        <label for="reg-email">Email</label>
+        <input id="reg-email" name="email" type="email" autocomplete="email" placeholder="tucorreo@ejemplo.com" required />
+        <label for="reg-password">Contraseña (mín. 8)</label>
+        <input id="reg-password" name="password" type="password" autocomplete="new-password" minlength="8" placeholder="mínimo 8 caracteres" required />
+        <label for="reg-role">Rol</label>
+        <select id="reg-role" name="role" required>
+          <option value="client">Cliente (creo solicitudes)</option>
+          <option value="supplier">Proveedor (envío ofertas)</option>
+        </select>
+        <button type="submit" data-loading>Crear cuenta</button>
+      </form>
+    </section>
+
+    <!-- App -->
+    <section id="app" class="hidden">
+      <!-- Summary -->
+      <div id="summary" class="summary card hidden" aria-label="Resumen">
+        <div class="stat">
+          <span class="stat-num" id="stat-requests">0</span>
+          <span class="stat-label" id="stat-requests-label">Solicitudes</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num" id="stat-negs">0</span>
+          <span class="stat-label">Negociaciones activas</span>
+        </div>
+        <div class="stat" id="stat-turn-wrap">
+          <span class="stat-num" id="stat-turn">0</span>
+          <span class="stat-label">Tu turno</span>
+        </div>
+      </div>
+
+      <!-- Client: create request -->
+      <div id="client-new" class="card hidden">
+        <h2>Nueva solicitud de producto</h2>
+        <form id="request-form" class="row">
+          <div class="field grow">
+            <label for="req-product">Producto</label>
+            <input id="req-product" name="product_name" placeholder="Ej: Laptops 14\"" required />
+          </div>
+          <div class="field">
+            <label for="req-qty">Cantidad</label>
+            <input id="req-qty" name="quantity" type="number" min="1" value="1" required />
+          </div>
+          <div class="field grow">
+            <label for="req-desc">Descripción (opcional)</label>
+            <input id="req-desc" name="description" placeholder="Detalles, specs…" />
+          </div>
+          <button type="submit" class="self-end" data-loading>Crear solicitud</button>
+        </form>
+      </div>
+
+      <div class="columns">
+        <div class="card">
+          <h2 id="requests-title">Solicitudes</h2>
+          <div id="requests" class="list"></div>
+        </div>
+        <div class="card">
+          <h2>Mis negociaciones</h2>
+          <div id="negotiations" class="list"></div>
+        </div>
+      </div>
+
+      <div id="detail" class="card hidden">
+        <h2>Negociación <span id="detail-id"></span> · <span id="detail-status" class="badge"></span></h2>
+        <p id="turn-banner" class="turn-banner hidden" aria-live="polite"></p>
+        <div id="proposals" class="timeline"></div>
+        <div id="actions" class="row"></div>
+      </div>
+    </section>
+
+    <!-- Modal for offer / counter-offer -->
+    <div id="modal-backdrop" class="modal-backdrop hidden">
+      <div class="modal card" role="dialog" aria-modal="true" aria-labelledby="modal-title" id="modal">
+        <h2 id="modal-title">Oferta</h2>
+        <form id="modal-form" class="pane">
+          <label for="modal-amount">Monto (COP)</label>
+          <input id="modal-amount" name="amount" type="number" min="0" step="1" inputmode="numeric" required />
+          <label for="modal-message">Mensaje (opcional)</label>
+          <input id="modal-message" name="message" placeholder="Comentario para la contraparte" />
+          <p id="modal-error" class="modal-error hidden" aria-live="assertive"></p>
+          <div class="row modal-actions">
+            <button type="submit" class="ok" id="modal-confirm" data-loading>Confirmar</button>
+            <button type="button" class="ghost" id="modal-cancel">Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

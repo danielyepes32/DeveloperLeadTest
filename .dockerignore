@@ -1,0 +1,15 @@
+.git
+.gitignore
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+.env
+*.sqlite3
+pgdata/
+Arquitectura/
+tests/
+.github/
+README.md
