@@ -56,14 +56,15 @@ jobs:
           cache-to: type=gha,mode=max
       # Real deploys push this image to a registry (GHCR/ECR); here we build &
       # scan it as a quality gate. See Arquitectura/ADR/0001-estrategia-despliegue.md.
-      - name: Scan image (Trivy, falla en CRITICAL fixables)
-        uses: aquasecurity/trivy-action@v0.30.0
-        with:
-          image-ref: procurement-api:ci
-          format: table
-          exit-code: "1"
-          ignore-unfixed: true
-          severity: CRITICAL
+      # Trivy is run from its official image (avoids the trivy-action -> setup-trivy
+      # version-resolution issues) and fails the build on fixable CRITICAL CVEs.
+      - name: Scan image (Trivy)
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.58.0 image \
+            --exit-code 1 --ignore-unfixed --severity CRITICAL \
+            --no-progress procurement-api:ci
 
   deploy-staging:
     name: Deploy to staging
